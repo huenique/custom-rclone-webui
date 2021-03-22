@@ -1,0 +1,73 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+
+    <title>Custom Rclone WebGUI</title>
+
+    <!-- Bootstrap core CSS -->
+    <link
+      href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}"
+      rel="stylesheet"
+    />
+
+    <!-- Custom styles for this template -->
+    <link href="{% static 'css/simple-sidebar.css' %}" rel="stylesheet" />
+
+    <!-- Other custom styles -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+      media="all"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/css/bootstrap4-toggle.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      input {
+        max-width: 30em;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Page Content -->
+    <div id="page-content-wrapper">
+      <!-- Navbar -->
+      <!-- <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+    </nav> -->
+      <!-- /#Navbar -->
+
+      <div class="container-fluid">{% block content %} {% endblock %}</div>
+    </div>
+    <!-- /#Page-content-wrapper -->
+    <!-- /#wrapper -->
+
+    <!-- Bootstrap core JavaScript -->
+    <script src="{% static 'vendor/jquery/jquery.min.js' %}"></script>
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+
+    <!-- Bootstrap Switch Button -->
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
+
+    <!-- Menu Toggle Script -->
+    <script>
+      $("#menu-toggle").click(function (e) {
+        e.preventDefault();
+        $("#wrapper").toggleClass("toggled");
+      });
+    </script>
+
+    {% block scripts %} {% endblock %}
+  </body>
+</html>

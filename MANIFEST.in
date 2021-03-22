@@ -1,0 +1,5 @@
+include LICENSE
+include README.rst
+recursive-include webui/static *
+recursive-include webui/templates *
+recursive-include docs *

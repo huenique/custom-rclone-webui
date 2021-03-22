@@ -1,0 +1,745 @@
+{% extends "webui/base.html" %} 
+{% load crispy_forms_tags %} 
+{% load list_tags %} 
+{% load static %}
+{% block content %}
+<div class="container">
+  <h1 class="mt-5">Custom Rclone WebUI</h1>
+  <div class="table mt-4">
+    <table class="table table-xl">
+      <thead>
+        <tr>
+          <td></td>
+        </tr>
+      </thead>
+    </table>
+  </div>
+
+  <!-- list of uploaded files -->
+  <div class="flex-row p-2">
+    <h5>Choose the file(s) you want to sync or copy.</h5>
+    {% if messages %} {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}" role="alert">
+      <strong
+        >{% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}Error{% else %}{{
+        message.tags|title }}{% endif %}!
+      </strong>
+      {{ message }}
+    </div>
+    {% endfor %} {% endif %}
+    <div class="table mt-4">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            <th scope="col">File</th>
+            <th scope="col">Last Modified</th>
+            <th>
+              <a
+                type="button"
+                class="fa fa-bars"
+                id="dropdownMenuButton"
+                data-toggle="dropdown"
+                aria-haspopup="true"
+                aria-expanded="false"
+              ></a>
+              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                <!-- Primary Features Trigger -->
+                {% if uploads %}
+                <label
+                  class="btn dropdown-item"
+                  style="padding: 0rem 0rem; margin-bottom: 0px"
+                >
+                  <a class="dropdown-item">Rclone Copy</a>
+                  <button
+                    type="button"
+                    data-toggle="modal"
+                    data-target="#copyModal"
+                    style="display: none"
+                  ></button>
+                </label>
+                <label
+                  class="btn dropdown-item"
+                  style="padding: 0rem 0rem; margin-bottom: 0px"
+                >
+                  <a class="dropdown-item">Rclone Sync</a>
+                  <button
+                    type="button"
+                    data-toggle="modal"
+                    data-target="#syncModal"
+                    style="display: none"
+                  ></button>
+                </label>
+                {% else %}
+                <button class="dropdown-item disabled">Rclone Copy</button>
+                <button class="dropdown-item disabled">Rclone Sync</button>
+                {% endif %}
+
+                <div class="dropdown-divider"></div>
+
+                <!-- Remote Config Trigger -->
+                <label
+                  class="btn dropdown-item"
+                  style="padding: 0rem 0rem; margin-bottom: 0px"
+                >
+                  <a class="dropdown-item">Configure Remote</a>
+                  <button
+                    type="button"
+                    data-toggle="modal"
+                    data-target="#configModal"
+                    style="display: none"
+                  ></button>
+                </label>
+
+                <!-- App Settings Trigger -->
+                <label
+                  class="btn dropdown-item"
+                  style="padding: 0rem 0rem; margin-bottom: 0px"
+                >
+                  <a class="dropdown-item">App Settings</a>
+                  <button
+                    type="button"
+                    data-toggle="modal"
+                    data-target="#settingsModal"
+                    style="display: none"
+                  ></button>
+                </label>
+
+                <div class="dropdown-divider"></div>
+
+                <!-- Clear List Trigger -->
+                <form action="{% url 'dashboard' %}" method="POST">
+                  {% csrf_token %}
+                  <label
+                    class="btn dropdown-item"
+                    style="padding: 0rem 0rem; margin-bottom: 0px"
+                  >
+                    <a class="dropdown-item">Clear List</a>
+                    <button
+                      type="submit"
+                      name="clearList"
+                      style="display: none"
+                    ></button>
+                  </label>
+                </form>
+
+                <!-- Upload Form -->
+                <form
+                  enctype="multipart/form-data"
+                  id="selectFiles"
+                  action="{% url 'dashboard' %}"
+                  method="POST"
+                >
+                  {% csrf_token %}
+                  <label
+                    class="btn dropdown-item"
+                    style="padding: 0rem 0rem; margin-bottom: 0px"
+                  >
+                    <a class="dropdown-item">Choose Files</a>
+                    <input
+                      type="file"
+                      name="upload"
+                      style="display: none"
+                      onchange="javascript:this.form.submit()"
+                      multiple
+                    />
+                  </label>
+                </form>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        {% for upload in uploads %}
+        <tbody>
+          <tr>
+            <td></td>
+            <td>{{ upload.file_name }}</td>
+            <td>{{upload.last_modified}}</td>
+            <td></td>
+          </tr>
+        </tbody>
+        {% empty %}
+        <tbody>
+          <tr>
+            <th></th>
+            <th scope="row">No files selected.</th>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  <!-- #/list of uploaded files -->
+</div>
+
+<!-- Copy Modal -->
+<div
+  class="modal fade mt-4"
+  id="copyModal"
+  tabindex="-1"
+  role="dialog"
+  aria-labelledby="exampleModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Copy Source to Destination</h3>
+        <button
+          type="button"
+          class="close"
+          data-dismiss="modal"
+          aria-label="Close"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="copyForm" action="{% url 'dashboard' %}" method="POST">
+          {% csrf_token %} 
+          {% if remotes_conf %}
+            <h5>Choose a Source:</h5>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                onclick="document.getElementById('copySourceFolder').disabled = true;"
+                name="src"
+                id="copylocalsource"
+                value="{{ home_path }}"
+              />
+              <label class="form-check-label" for="copylocalsource">
+                Custom Rclone WebGUI
+              </label>
+            </div>
+            {% for remote_conf in remotes_conf %} 
+              {% for rc in remote_conf %} 
+                {% with next_element=remote_conf|next:forloop.counter0 %} {% if rc not in
+                  valid_remotes %}
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      onclick="document.getElementById('copySourceFolder').disabled = false;"
+                      name="src"
+                      id="{{ rc }} + 'copysource'"
+                      value="{{ rc }}"
+                    />
+                    <label class="form-check-label" for="{{ rc }} + 'copysource'">
+                      {{ rc }}
+                    </label>
+                  </div>
+                {% endwith %}
+              {% endfor %}
+            {% endfor %}
+            <h5 class="mt-3">Choose a Destination:</h5>
+            {% for remote_conf in remotes_conf %} 
+              {% for rc in remote_conf %} 
+                {% with next_element=remote_conf|next:forloop.counter0 %} 
+                  {% if rc not in valid_remotes %}
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="dst"
+                        id="{{ rc }} + 'copyremote'"
+                        value="{{ rc }}"
+                      />
+                      <label class="form-check-label" for="{{ rc }} + 'copyremote'">
+                        {{ rc }}
+                      </label>
+                    </div>
+                  {% endif %}
+                {% endwith %}
+              {% endfor %}
+            {% endfor %}
+            <div class="table mt-4">
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text" id=""
+                    >Source & Destination Path/Folder</span
+                  >
+                </div>
+                <input
+                  type="text"
+                  id="copySourceFolder"
+                  name="copySourceFolder"
+                  placeholder="MySourceFolder"
+                  class="form-control"
+                />
+                <input
+                  type="text"
+                  id="copyDestinationFolder"
+                  name="copyDestinationFolder"
+                  placeholder="MyDestinationFolder"
+                  class="form-control"
+                />
+              </div>
+            </div>
+          {% else %}
+            <p>
+              You haven't configured a remote. Check your config at: {{
+              remotes_conf_path }}
+            </p>
+          {% endif %}
+        </form>
+      </div>
+      <div class="modal-footer">
+        {% if remotes_conf %}
+        <button type="submit" class="btn btn-primary btn-lg" form="copyForm">
+          Copy Files
+        </button>
+        {% else %}
+        <button
+          type="submit"
+          class="btn btn-primary btn-lg"
+          form="copyForm"
+          disabled
+        >
+          Copy Files
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Exit Modal Form -->
+<form action="{% url 'dashboard' %}" id="refreshPage" action="POST">
+  <input style="display: none" />
+</form>
+
+<!-- Sync Modal -->
+<div class="modal fade" id="syncModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Sync Source to Destination</h3>
+        <button
+          type="button"
+          class="close"
+          data-dismiss="modal"
+          aria-label="Close"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <h5>Caution: Sync can cause data loss.</h5>
+        <p>
+          More information at:
+          <a href="https://rclone.org/commands/rclone_sync/"
+            >https://rclone.org/commands/rclone_sync/</a
+          >
+        </p>
+        <form
+          class="mt-4"
+          id="syncForm"
+          action="{% url 'dashboard' %}"
+          method="POST"
+        >
+          {% csrf_token %}
+          {% if remotes_conf %}
+            <h5>Choose a Source:</h5>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="radio"
+                onclick="document.getElementById('syncSourceFolder').disabled = true;"
+                name="src"
+                id="synclocalsource"
+                value="{{ home_path }}"
+              />
+              <label class="form-check-label" for="synclocalsource">
+                Custom Rclone WebGUI
+              </label>
+            </div>
+            {% for remote_conf in remotes_conf %}
+              {% for rc in remote_conf %}
+                {% with next_element=remote_conf|next:forloop.counter0 %}
+                  {% if rc not in valid_remotes %}
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        onclick="document.getElementById('syncSourceFolder').disabled = false;"
+                        name="src"
+                        id="{{ rc }} + 'syncsource'"
+                        value="{{ rc }}"
+                      />
+                      <label class="form-check-label" for="{{ rc }} + 'syncsource'">
+                        {{ rc }}
+                      </label>
+                    </div>
+                  {% endif %}
+                {% endwith %}
+              {% endfor %}
+            {% endfor %}
+            <h5 class="mt-3">Choose a Destination:</h5>
+            {% for remote_conf in remotes_conf %} 
+              {% for rc in remote_conf %} 
+                {% with next_element=remote_conf|next:forloop.counter0 %} 
+                  {% if rc not in valid_remotes %}
+                    <div class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="radio"
+                        name="dst"
+                        id="{{ rc }} + 'syncremote'"
+                        value="{{ rc }}"
+                      />
+                      <label class="form-check-label" for="{{ rc }} + 'syncremote'">
+                        {{ rc }}
+                      </label>
+                    </div>
+                  {% endif %}
+                {% endwith %} 
+              {% endfor %}
+            {% endfor %}
+            <div class="table mt-4">
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text" id=""
+                    >Source & Destination Path/Folder</span
+                  >
+                </div>
+                <input
+                  type="text"
+                  id="syncSourceFolder"
+                  name="syncSourceFolder"
+                  placeholder="MySourceFolder"
+                  class="form-control"
+                />
+                <input
+                  type="text"
+                  id="syncDestinationFolder"
+                  name="syncDestinationFolder"
+                  placeholder="MyDestinationFolder"
+                  class="form-control"
+                />
+              </div>
+            </div>
+          {% else %}
+            <p>
+              You haven't configured a remote. Check your config at: {{
+              remotes_conf_path }}
+            </p>
+          {% endif %}
+        </form>
+      </div>
+      <div class="modal-footer">
+        {% if remotes_conf %}
+        <button type="submit" class="btn btn-primary btn-lg" form="syncForm">
+          Sync Files
+        </button>
+        {% else %}
+        <button
+          type="submit"
+          class="btn btn-primary btn-lg"
+          form="syncForm"
+          disabled
+        >
+          Sync Files
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Config Modal -->
+<div class="modal fade" id="configModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create a new remote storage</h5>
+        <button
+          type="button"
+          class="close"
+          data-dismiss="modal"
+          aria-label="Close"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="flex-row p-2">
+          <div class="form-group">
+            <form id="newRemote" action="{% url 'dashboard' %}" method="POST">
+              {% csrf_token %} {{ new_remote|crispy }}
+            </form>
+          </div>
+          <h5 class="mt-5">Your available storage:</h5>
+          <ul class="ml-4 mr-4 list-group">
+          {% for remote_conf in remotes_conf %} 
+            {% for rc in remote_conf %} 
+              {% with next_element=remote_conf|next:forloop.counter0 %} 
+                {% if rc not in valid_remotes %}
+                <li>{{ rc|add:' '|add:next_element }}</li>
+                {% endif %}
+              {% endwith %}
+            {% endfor %}
+          {% empty %}
+            <li>
+              You haven't configured a remote. Check your config at: {{
+              remotes_conf_path }}
+            </li>
+          {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          Close
+        </button>
+        <button type="submit" class="btn btn-primary" form="newRemote">
+          Submit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">App Settings</h5>
+        <div class="p-2"></div>
+        <button
+          type="button"
+          class="close"
+          data-dismiss="modal"
+          aria-label="Close"
+        >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form action="{% url 'dashboard' %}" id="appSettings" method="POST">
+          {% csrf_token %}
+          <input name="iniFile" style="display: none" />
+          <div class="container-fluid">
+            <p>Turn on Automation Script to enable Auto Copy and Auto Sync.</p>
+            <p class="mb-4">
+              NOTE: You can't both turn on Auto Copy and Auto Sync as it will
+              cause data loss.
+            </p>
+            <table class="table">
+              <tbody>
+                <tr>
+                  <td class="border-0">
+                    <h5>
+                      <label class="mt-2" for="startSyncAuto"
+                        >Automation Script</label
+                      >
+                    </h5>
+                  </td>
+                  <td class="border-0 d-flex flex-row-reverse">
+                    {% if script_stat %}
+                    <div class="p-2">
+                      <input
+                        type="checkbox"
+                        checked
+                        data-toggle="toggle"
+                        data-on="ON"
+                        data-off="OFF"
+                        data-onstyle="success"
+                        data-offstyle="secondary"
+                        name="scriptActive"
+                        data-width="100"
+                      />
+                    </div>
+                    {% else %}
+                    <div class="p-2">
+                      <input
+                        type="checkbox"
+                        data-toggle="toggle"
+                        data-on="ON"
+                        data-off="OFF"
+                        data-onstyle="success"
+                        data-offstyle="secondary"
+                        name="scriptActive"
+                        data-width="100"
+                      />
+                    </div>
+                    {% endif %}
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <h5>
+                      <label class="mt-2" for="startSyncAuto">Auto Copy</label>
+                    </h5>
+                  </td>
+                  <td class="d-flex flex-row-reverse">
+                    {% if copy_stat %}
+                    <div class="p-2">
+                      <input
+                        type="checkbox"
+                        checked
+                        data-toggle="toggle"
+                        data-on="ON"
+                        data-off="OFF"
+                        data-onstyle="primary"
+                        data-offstyle="secondary"
+                        name="copyActive"
+                        data-width="90"
+                      />
+                    </div>
+                    {% elif sync_stat %}
+                    <div class="p-2">
+                      <input
+                        type="checkbox"
+                        data-toggle="toggle"
+                        data-on="ON"
+                        data-off="OFF"
+                        data-onstyle="primary"
+                        data-offstyle="secondary"
+                        name="copyActive"
+                        data-width="90"
+                        disabled
+                      />
+                    </div>
+                    {% else %}
+                    <div class="p-2">
+                      <input
+                        type="checkbox"
+                        data-toggle="toggle"
+                        data-on="ON"
+                        data-off="OFF"
+                        data-onstyle="primary"
+                        data-offstyle="secondary"
+                        name="copyActive"
+                        data-width="90"
+                      />
+                    </div>
+                    {% endif %}
+                  </td>
+                </tr>
+                <tr>
+                  <td class="border-0">
+                    <h5>
+                      <label class="mt-2" for="startSyncAuto">Auto Sync</label>
+                    </h5>
+                  </td>
+                  <td class="border-0 d-flex flex-row-reverse">
+                    {% if sync_stat %}
+                    <div class="p-2">
+                      <input
+                        type="checkbox"
+                        checked
+                        data-toggle="toggle"
+                        data-on="ON"
+                        data-off="OFF"
+                        data-onstyle="primary"
+                        data-offstyle="secondary"
+                        id="startSyncAuto"
+                        name="syncActive"
+                        data-width="90"
+                      />
+                    </div>
+                    {% elif copy_stat %}
+                    <div class="p-2">
+                      <input
+                        type="checkbox"
+                        data-toggle="toggle"
+                        data-on="ON"
+                        data-off="OFF"
+                        data-onstyle="primary"
+                        data-offstyle="secondary"
+                        id="startSyncAuto"
+                        name="syncActive"
+                        data-width="90"
+                        disabled
+                      />
+                    </div>
+                    {% else %}
+                    <div class="p-2">
+                      <input
+                        type="checkbox"
+                        data-toggle="toggle"
+                        data-on="ON"
+                        data-off="OFF"
+                        data-onstyle="primary"
+                        data-offstyle="secondary"
+                        id="startSyncAuto"
+                        name="syncActive"
+                        data-width="90"
+                      />
+                    </div>
+                    {% endif %}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          Close
+        </button>
+        <button type="Submit" class="btn btn-primary" form="appSettings">
+          Start Automation
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Drive form -->
+<div class="modal fade" id="drive" data-backdrop="static" data-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">
+          New Remote Storage - Google Drive
+        </h5>
+      </div>
+      <div class="modal-body">
+        <h6>
+          Make your own Client ID and and Client Secret:
+          <a href="https://rclone.org/drive/#making-your-own-client-id"
+            >https://rclone.org/drive/#making-your-own-client-id</a
+          >
+        </h6>
+        <form
+          class="mt-4"
+          action="{% url 'dashboard' %}"
+          id="createDrive"
+          method="POST"
+        >
+          {% csrf_token %} {{ drive_form|crispy }}
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-secondary" form="refreshPage">
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" form="createDrive">
+          Create Storage
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+{% if successful_submit %}
+  <!-- Form Submit Pop-up -->
+  <!-- Drive -->
+  <script type="text/javascript">
+    $(document).ready(function () {
+      var extra = "#";
+      var mdoal_name = "{{ modal_name }}";
+      var modal_name = extra.concat(mdoal_name);
+      $(modal_name).modal("show");
+    });
+  </script>
+{% endif %} 
+{% endblock scripts %}
+{% endblock content %}
