@@ -1,4 +1,5 @@
 import pathlib
+import platform
 
 from django.contrib import messages
 from django.shortcuts import redirect, render
@@ -10,6 +11,7 @@ from .utils.rclone import RcloneWindows
 RCLONE_WINDOWS = RcloneWindows()
 HOME_PATH = str(pathlib.Path.home())[0]
 OS_ROOT = ['C', 'c' '/']
+OS_TYPE = platform.system()
 
 # VALID_REMOTE represents the short string values
 # of the storage providers Rclone supports. For more info,
@@ -27,9 +29,14 @@ VALID_REMOTE = [
 def dashboard(request):
     global storage_name, storage_type
     uploads = Upload.objects.all()
-    remotes_conf = RCLONE_WINDOWS.read_conf()
-    remotes_conf_path = RCLONE_WINDOWS.config_file()
-    copy_stat, sync_stat, script_stat = RCLONE_WINDOWS.view_conf_options()
+    if OS_TYPE == 'Windows':
+        remotes_conf = RCLONE_WINDOWS.read_conf()
+        remotes_conf_path = RCLONE_WINDOWS.config_file()
+        copy_stat, sync_stat, script_stat = RCLONE_WINDOWS.view_conf_options()
+    else:
+        remotes_conf = [('storage', 'storage')]
+        remotes_conf_path = 'path/to/rclone/config/file'
+        copy_stat, sync_stat, script_stat = False, False, False
 
     src_list = []
     dst_list = []
@@ -116,6 +123,8 @@ def dashboard(request):
 
 
 def create_remote_drive(request):
+    if OS_TYPE != 'Windows':
+        return
     global storage_name, storage_type
     default_scope = {'drive': 'drive'}
     drive_options = {
@@ -144,6 +153,8 @@ def create_remote_drive(request):
 
 
 def copy_sync_cmd(request):
+    if OS_TYPE != 'Windows':
+        return
     webui_src_path = RCLONE_WINDOWS.webui_files_path()
     default_src_path = default_dst_path = RCLONE_WINDOWS.rclone_dst_default()
     src_input = request.POST.get('src')
@@ -183,6 +194,8 @@ def copy_sync_cmd(request):
 
 
 def copy_files(request):
+    if OS_TYPE != 'Windows':
+        return
     webui_src_path = RCLONE_WINDOWS.webui_files_path()
     default_src_path = default_dst_path = RCLONE_WINDOWS.rclone_dst_default()
     src_input = request.POST.get('src')
@@ -209,6 +222,8 @@ def copy_files(request):
 
 
 def sync_files(request):
+    if OS_TYPE != 'Windows':
+        return
     webui_src_path = RCLONE_WINDOWS.webui_files_path()
     src_input = request.POST.get('src')
     dst_input = request.POST.get('dst')
@@ -235,6 +250,8 @@ def sync_files(request):
 
 
 def rclone_webui_auto(request, src_list, dst_list):
+    if OS_TYPE != 'Windows':
+        return
     script_btn_active = request.POST.get('scriptActive')
     copy_btn_active = request.POST.get('copyActive')
     sync_btn_active = request.POST.get('syncActive')
