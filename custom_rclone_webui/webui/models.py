@@ -34,6 +34,7 @@ class Upload(models.Model):
     """
     Model for any and all file uploads.
     """
+    id = models.AutoField(primary_key=True)
     file = models.FileField(upload_to=user_directory_path,
                             storage=OverwriteStorage())
     last_modified = models.DateTimeField(auto_now=True, null=True)
